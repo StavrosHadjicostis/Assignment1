@@ -1,5 +1,6 @@
 import sys
-from scapy.all import sniff, ARP
+from scapy.all import sniff, ARP, Ether, srp
+import os
 
 
 
@@ -76,6 +77,36 @@ def passive_scan(interface):
         print(f"Error: {e}")
 
 
+def active_recon(interface):
+
+    # Get the interface IP address
+    try:
+        # Getting the interface IP
+        ip_output = os.popen(f"ip addr show {interface}").read()
+        # Extracting the IP address
+        interface_ip = ip_output.split("inet ")[1].split("/")[0]
+    except Exception as e:
+        print(f"Error: Could not retrieve IP address for interface {interface}. {e}")
+        sys.exit(1)
+    
+    # Generating a list of IP addresses in the same /24 subnet
+    network_prefix = '.'.join(interface_ip.split('.')[:-1])  # Get the first three octets
+    ip_range = [f"{network_prefix}.{i}" for i in range(1, 255)]  # Generate IPs from 1 to 254
+
+    print(f"Sending ARP requests on network from {interface_ip}/24")
+
+    # Creating an ARP request packet for each IP in the range
+    arp_request = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip_range)
+
+    # Sending the ARP requests and capturing the replies
+    answered, unanswered = srp(arp_request, timeout=2, iface=interface, verbose=0)
+
+    # Storing detected MAC-IP pairs
+    detected_hosts = {}
+    for sent, received in answered:
+        detected_hosts[received.psrc] = received.hwsrc
+
+    display_table(detected_hosts, interface, "Active")
 
 
 
