@@ -1,5 +1,5 @@
 import sys
-
+from scapy.all import sniff, ARP
 
 
 
@@ -11,7 +11,30 @@ def help():
     print("Description of the Tool:\n")
     print("The net_recon.py tool allows a user to passively or actively detect hosts on their network!")
 
+def passive_scan(interface):
+    print(f"Starting passive scan on interface {interface}. Press Ctrl+C to stop.")
+    
+    # Dictionary to store unique IP-MAC pairs
+    detected_pairs = {}
 
+    def arp_callback(packet):
+        # Check for ARP reply (opcode 2) packets
+        if ARP in packet and packet[ARP].op == 2:  # 2 is "is-at" or ARP reply
+            src_ip = packet[ARP].psrc
+            src_mac = packet[ARP].hwsrc
+            
+            # Add new pairs to dictionary and display them
+            if (src_ip, src_mac) not in detected_pairs:
+                detected_pairs[(src_ip, src_mac)] = True
+                print(f"Detected - IP: {src_ip} | MAC: {src_mac}")
+
+    try:
+        # Sniff ARP packets on the specified interface with a callback function
+        sniff(iface=interface, filter="arp", prn=arp_callback, store=False)
+    except KeyboardInterrupt:
+        print("\nPassive scan terminated by user.")
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 
@@ -53,6 +76,12 @@ def main():
     if(modeflag==False or iflag==False):
         help()
         sys.exit(1)
+
+    # If the user choosen the passive mode then we call the passive_scan function
+    if(passive):
+        passive_scan(interface)
+    elif(active):
+        pass
 
 
 # Calling the main function
