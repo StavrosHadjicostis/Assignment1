@@ -11,6 +11,39 @@ def help():
     print("Description of the Tool:\n")
     print("The net_recon.py tool allows a user to passively or actively detect hosts on their network!")
 
+# Function to display detected MAC-IP pairs in a table format
+def display_table(detected_pairs, interface, mode):
+    # Clear the console
+    print("\033c", end="")
+
+    # Header information
+    print(f"Interface: {interface}      Mode: {mode}      Found {len(detected_pairs)} hosts")
+    print("-" * 100)
+
+    if (mode=="Active"):
+        print(f"{'MAC':<20}{'IP':<20}")
+        print("-" * 100)
+
+        # Print each MAC-IP pair
+        for mac, ip in detected_pairs.items():
+            print(f"{mac:<20}{ip:<20}")
+        
+        print("-" * 100)
+    elif (mode=="Passive"):
+        print(f"{'MAC':<20}{'IP':<20}{'Host Activity':<15}")
+        print("-" * 100)
+
+        # Sort detected_pairs by activity (number of packets) in descending order
+        sorted_pairs = sorted(detected_pairs.items(), key=lambda item: item[1][1], reverse=True)
+
+        # Print each MAC-IP pair along with the packet count
+        for mac, (ip, activity) in sorted_pairs:
+            print(f"{mac:<20}{ip:<20}{activity:<15}")
+        
+        print("-" * 100)
+
+
+
 def passive_scan(interface):
     print(f"Starting passive scan on interface {interface}. Press Ctrl+C to stop.")
     
@@ -24,9 +57,15 @@ def passive_scan(interface):
             src_mac = packet[ARP].hwsrc
             
             # Add new pairs to dictionary and display them
-            if (src_ip, src_mac) not in detected_pairs:
-                detected_pairs[(src_ip, src_mac)] = True
-                print(f"Detected - IP: {src_ip} | MAC: {src_mac}")
+            # If this MAC address is already detected, update the packet count
+            if src_mac in detected_pairs:
+                detected_pairs[src_mac] = (src_ip, detected_pairs[src_mac][1] + 1)
+            else:
+                # New host detected: Add to the dictionary with a packet count of 1
+                detected_pairs[src_mac] = (src_ip, 1)
+
+            # Update display
+            display_table(detected_pairs, interface, "Passive")
 
     try:
         # Sniff ARP packets on the specified interface with a callback function
