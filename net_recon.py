@@ -151,7 +151,7 @@ def main():
     if(passive):
         passive_scan(interface)
     elif(active):
-        pass
+        active_recon(interface)
 
 
 # Calling the main function
